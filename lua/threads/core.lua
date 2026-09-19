@@ -12,6 +12,7 @@ local M = {}
 
 local track_ns = vim.api.nvim_create_namespace('threads.nvim.track')
 local display_ns = vim.api.nvim_create_namespace('threads.nvim.display')
+local sign_ns = vim.api.nvim_create_namespace('threads.nvim.sign')
 
 local state = {
   threads = {}, -- id -> thread (runtime fields start with `_`)
@@ -25,6 +26,7 @@ local state = {
 M.state = state
 M.track_ns = track_ns
 M.display_ns = display_ns
+M.sign_ns = sign_ns
 
 local function valid_buf(bufnr)
   return bufnr ~= nil
@@ -77,6 +79,7 @@ function M.apply_keymaps()
 end
 
 function M.setup()
+  require('threads.commands').register()
   if state.setup then
     return
   end
@@ -520,6 +523,47 @@ function M.create(opts)
     title = 'New thread',
     footer = ' <C-s>/<Esc> submit · q cancel ',
     on_submit = do_create,
+  })
+  return nil
+end
+
+--- Append a user message to a thread without sending it.
+function M.comment(t, opts)
+  opts = opts or {}
+  if type(t) == 'string' then
+    t = M.get(t)
+  end
+  t = t or M.current()
+  if not t then
+    util.notify('no thread here', vim.log.levels.WARN)
+    return nil
+  end
+  t = state.threads[t.id] or t
+
+  local function add(text)
+    text = (text or ''):gsub('^%s+', ''):gsub('%s+$', '')
+    if text == '' then
+      return nil
+    end
+    t.messages[#t.messages + 1] = { role = 'user', content = text, ts = os.time() }
+    t.updated_at = os.time()
+    if t.state ~= 'sent' then
+      t.state = 'pending'
+      t.closed_reason = nil
+    end
+    M.save_buffer(t._bufnr)
+    render().thread(t)
+    events.emit('commented', M.view(t))
+    return t
+  end
+
+  if opts.text ~= nil then
+    return add(opts.text)
+  end
+  ui_input.prompt({
+    title = 'Comment on ' .. t.id:sub(1, 8),
+    footer = ' <C-s>/<Esc> add · q cancel ',
+    on_submit = add,
   })
   return nil
 end
@@ -1158,6 +1202,9 @@ function M.delete(t)
   end
   local bufnr = t._bufnr
   local id = t.id
+  if bufnr and vim.api.nvim_buf_is_valid(bufnr) and t._sign_id then
+    pcall(vim.api.nvim_buf_del_extmark, bufnr, sign_ns, t._sign_id)
+  end
   if bufnr and vim.api.nvim_buf_is_valid(bufnr) and t._display_id then
     pcall(vim.api.nvim_buf_del_extmark, bufnr, display_ns, t._display_id)
   end
@@ -1190,6 +1237,9 @@ function M.delete_all(opts)
         local handle = state.running[id]
         if handle then
           handle.stop()
+        end
+        if t._sign_id and vim.api.nvim_buf_is_valid(bufnr) then
+          pcall(vim.api.nvim_buf_del_extmark, bufnr, sign_ns, t._sign_id)
         end
         if t._display_id and vim.api.nvim_buf_is_valid(bufnr) then
           pcall(vim.api.nvim_buf_del_extmark, bufnr, display_ns, t._display_id)

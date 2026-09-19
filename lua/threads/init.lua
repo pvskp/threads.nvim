@@ -40,6 +40,11 @@ function M.create(...)
   return core.create(...)
 end
 
+function M.comment(...)
+  ensure()
+  return core.comment(...)
+end
+
 function M.reply(...)
   ensure()
   return core.reply(...)

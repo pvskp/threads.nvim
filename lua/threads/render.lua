@@ -135,11 +135,48 @@ function M.build(t)
   return lines
 end
 
+--- (Re)draw the sign-column indicator for a thread.
+function M.sign(t)
+  if not t or not t._bufnr or not vim.api.nvim_buf_is_valid(t._bufnr) then
+    return
+  end
+  local bufnr = t._bufnr
+  local ns = core().sign_ns
+  local display = config.get().display
+  local show = display.signs ~= false
+    and vim.api.nvim_buf_is_loaded(bufnr)
+    and not (t.state == 'closed' and not display.show_closed)
+
+  if not show then
+    if t._sign_id then
+      pcall(vim.api.nvim_buf_del_extmark, bufnr, ns, t._sign_id)
+      t._sign_id = nil
+    end
+    return
+  end
+
+  local line_count = vim.api.nvim_buf_line_count(bufnr)
+  local row = math.min(math.max(t.range.start_row or 0, 0), math.max(line_count - 1, 0))
+  local ok, id = pcall(vim.api.nvim_buf_set_extmark, bufnr, ns, row, 0, {
+    id = t._sign_id,
+    sign_text = icon_for(t),
+    sign_hl_group = state_hl(t),
+    priority = 100,
+  })
+  if ok then
+    t._sign_id = id
+  else
+    t._sign_id = nil
+  end
+end
+
 --- (Re)draw a single thread.
 function M.thread(t)
   if not t or not t._bufnr or not vim.api.nvim_buf_is_valid(t._bufnr) then
     return
   end
+  M.sign(t)
+
   local bufnr = t._bufnr
   local state = core().state
   local ns = core().display_ns
@@ -169,7 +206,7 @@ function M.thread(t)
   end
 end
 
---- Redraw every thread in a buffer.
+--- Redraw every thread in a buffer (signs are shown even when virtual lines are hidden).
 function M.buffer(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   if not vim.api.nvim_buf_is_valid(bufnr) or not vim.api.nvim_buf_is_loaded(bufnr) then
@@ -180,14 +217,13 @@ function M.buffer(bufnr)
     return
   end
   vim.api.nvim_buf_clear_namespace(bufnr, core().display_ns, 0, -1)
+  vim.api.nvim_buf_clear_namespace(bufnr, core().sign_ns, 0, -1)
   for _, id in ipairs(b.ids) do
     local t = core().state.threads[id]
     if t then
       t._display_id = nil
+      t._sign_id = nil
     end
-  end
-  if not b.visible or not config.get().display.enabled then
-    return
   end
   for _, id in ipairs(b.ids) do
     local t = core().state.threads[id]

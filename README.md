@@ -67,7 +67,9 @@ vim.keymap.set('n', '<leader>tD', function() require('threads').delete_all() end
    to disk in the repo.
 3. `:ThreadSend` sends the thread under the cursor. `:ThreadSendAll` sends
    every pending thread in the buffer (`:ThreadSendAll all` = every file) - all
-   requests run concurrently, Neovim stays responsive.
+   requests run concurrently, Neovim stays responsive. Need to add more first?
+   Use `:ThreadComment` (appends without sending) as many times as you want,
+   then send once.
 4. Waiting threads show an animated spinner. When done, the answer is appended
    to the thread (`answered`) and a notification is shown.
 5. `:ThreadReply` adds a follow-up message and sends it (multi-turn).
@@ -81,6 +83,7 @@ vim.keymap.set('n', '<leader>tD', function() require('threads').delete_all() end
 | `:ThreadNew` | Create a thread on the current line / visual range. `:ThreadNew!` also sends it. |
 | `:ThreadSend [id]` | Send one thread (cursor or id). Bang = apply mode. |
 | `:ThreadSendAll [all]` | Send all pending threads (buffer, or `all` files). |
+| `:ThreadComment [id]` | Add a comment/question to a thread without sending it. |
 | `:ThreadReply [id]` | Add a message to a thread and send it. |
 | `:ThreadApply [id]` | Send a thread in apply mode: the agent edits the file. |
 | `:ThreadApplyAll [all]` | Apply mode for all pending threads. |
@@ -120,6 +123,7 @@ require('threads').setup({
 
   display = {
     enabled = true,
+    signs = true,             -- sign-column indicator even when lines are hidden
     show_closed = false,      -- closed threads stay in :ThreadHistory
     max_message_lines = 8,    -- lines per message before "… more"
     max_lines = 30,           -- total virtual lines per thread
@@ -190,6 +194,7 @@ threads.create({ range = { start_row, start_col, end_row, end_col }, text = 'why
 threads.send(t, { action = 'ask' | 'apply' })
 threads.send_all({ all = false, action = 'ask' })
 threads.reply(t, { text = 'follow up' })
+threads.comment(t, { text = 'another note' }) -- append without sending
 threads.apply(t)
 threads.cancel(t)
 threads.close(t)
@@ -218,7 +223,7 @@ threads.off(id)
 ```
 
 Events: `created`, `sent`, `answered`, `error`, `closed`, `canceled`,
-`deleted`, `cleared`, `toggled`, `jumped`. They also fire as `User
+`commented`, `deleted`, `cleared`, `toggled`, `jumped`. They also fire as `User
 ThreadsAnswered`, etc.
 
 ### Telescope picker example
@@ -272,7 +277,8 @@ end)
   `stdpath('data')/threads.nvim/<sha256(path)>.json`. Threads never touch the
   repository.
 - Anchors are tracked with extmarks; rendering uses `virt_lines`, so the buffer
-  text is untouched.
+  text is untouched. Signs in the sign column mark every thread even when
+  `:ThreadToggle` hides the virtual lines.
 - Editing the anchored text closes the thread (`closed`), keeping history.
   Inserting lines above/below moves the anchor instead.
 - Requests are plain `jobstart` processes: fully asynchronous and concurrent.

@@ -318,8 +318,9 @@ test('user commands are registered', function()
   local cmds = vim.api.nvim_get_commands({})
   local names = {
     'ThreadNew', 'ThreadSend', 'ThreadSendAll', 'ThreadApply', 'ThreadApplyAll',
-    'ThreadReply', 'ThreadCancel', 'ThreadClose', 'ThreadToggle', 'ThreadDelete',
-    'ThreadDeleteAll', 'ThreadHistory', 'ThreadShow', 'ThreadNext', 'ThreadPrev',
+    'ThreadComment', 'ThreadReply', 'ThreadCancel', 'ThreadClose', 'ThreadToggle',
+    'ThreadDelete', 'ThreadDeleteAll', 'ThreadHistory', 'ThreadShow', 'ThreadNext',
+    'ThreadPrev',
   }
   for _, name in ipairs(names) do
     ok(cmds[name], 'missing command ' .. name)
@@ -401,6 +402,41 @@ test('arg mode closes stdin so agents do not block', function()
   threads.send(t)
   ok(wait_state(t.id, 'answered', 5000), 'agent blocked on an open stdin pipe')
   threads.setup({ storage = { dir = datadir }, agent = { cmd = { 'cat' }, mode = 'stdin' } })
+end)
+
+--------------------------------------------------------------------------
+test('signs indicate threads even when virtual lines are hidden', function()
+  fresh_buffer('signs.lua', { 'a', 'b', 'c' })
+  threads.create({ range = { start_row = 1, start_col = 0, end_row = 1, end_col = 1 }, text = 'sign me' })
+  ok(#vim.api.nvim_buf_get_extmarks(0, core.sign_ns, 0, -1, {}) >= 1, 'no sign placed')
+  threads.toggle()
+  eq(#vim.api.nvim_buf_get_extmarks(0, core.display_ns, 0, -1, {}), 0, 'virt lines should be hidden')
+  ok(#vim.api.nvim_buf_get_extmarks(0, core.sign_ns, 0, -1, {}) >= 1, 'sign should remain when collapsed')
+  threads.toggle()
+end)
+
+--------------------------------------------------------------------------
+test('show window uses markdown filetype', function()
+  fresh_buffer('showft.lua', { 'z' })
+  local t = threads.create({ range = { start_row = 0, start_col = 0, end_row = 0, end_col = 1 }, text = 'show' })
+  local win = threads.show(t)
+  ok(win and vim.api.nvim_win_is_valid(win), 'show window not opened')
+  eq(vim.bo[vim.api.nvim_win_get_buf(win)].filetype, 'markdown')
+  vim.api.nvim_win_close(win, true)
+end)
+
+--------------------------------------------------------------------------
+test('comment() aggregates messages before sending', function()
+  fresh_buffer('comment.lua', { 'x', 'y' })
+  threads.setup({ storage = { dir = datadir }, agent = { cmd = { 'cat' }, mode = 'stdin' } })
+  local t = threads.create({ range = { start_row = 0, start_col = 0, end_row = 0, end_col = 1 }, text = 'first' })
+  threads.comment(t, { text = 'second' })
+  threads.comment(t, { text = 'third' })
+  eq(#threads.get(t.id).messages, 3)
+  eq(threads.get(t.id).state, 'pending')
+  threads.send(t)
+  ok(wait_state(t.id, 'answered'), 'thread with aggregated comments never answered')
+  eq(#threads.get(t.id).messages, 4)
 end)
 
 --------------------------------------------------------------------------

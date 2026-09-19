@@ -28,6 +28,9 @@ function(prompt, ctx) returning either. `mode` is "arg" or "stdin". Sites:
 
 No keymaps are set unless `keymaps` is given. See |threads-keymaps|.
 
+Every thread is marked in the sign column, even when virtual lines are hidden
+with |:ThreadToggle|. Disable the signs with `display = { signs = false }`.
+
 ==============================================================================
 COMMANDS                                             *threads-commands*
 
@@ -42,6 +45,10 @@ COMMANDS                                             *threads-commands*
 :ThreadSendAll [all]                                            *:ThreadSendAll*
     Send all pending threads in the buffer, or in every known file with
     `all`. Requests run concurrently.
+
+:ThreadComment [id]                                            *:ThreadComment*
+    Append a comment/question to a thread without sending it. Use it several
+    times to aggregate several messages, then send once with |:ThreadSend|.
 
 :ThreadReply [id]                                                 *:ThreadReply*
     Prompt for a follow-up message and send it (multi-turn).
@@ -90,6 +97,7 @@ LUA API                                                  *threads-api*
   threads.send(t, { action = 'ask' | 'apply' })
   threads.send_all({ all = false, action = 'ask' })
   threads.reply(t, { text = '...' })
+  threads.comment(t, { text = '...' }) -- append without sending
   threads.apply(t)
   threads.cancel(t)
   threads.close(t)
@@ -113,8 +121,8 @@ Events: >lua
   local id = threads.on('answered', function(t) ... end)
   threads.off(id)
 <
-Available: created, sent, answered, error, closed, canceled, deleted, cleared,
-toggled, jumped. They are also fired as `User ThreadsAnswered` autocmds.
+Available: created, sent, answered, error, closed, canceled, commented,
+deleted, cleared, toggled, jumped. They are also fired as `User ThreadsAnswered` autocmds.
 
 ==============================================================================
 KEYMAPS                                                 *threads-keymaps*

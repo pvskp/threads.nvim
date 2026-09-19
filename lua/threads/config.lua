@@ -29,6 +29,9 @@ M.defaults = {
 
   display = {
     enabled = true,
+    -- Show state signs in the sign column (an indicator even when virtual
+    -- lines are hidden with :ThreadToggle).
+    signs = true,
     -- Closed threads are hidden from the buffer by default (they live on in :ThreadHistory).
     show_closed = false,
     max_message_lines = 8,
