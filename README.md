@@ -52,6 +52,7 @@ vim.keymap.set('n', '<leader>tS', function() require('threads').send_all() end, 
 vim.keymap.set('n', '<leader>tr', function() require('threads').reply() end, { desc = 'Reply in thread' })
 vim.keymap.set('n', '<leader>ta', function() require('threads').apply() end, { desc = 'Apply thread changes' })
 vim.keymap.set('n', '<leader>tt', function() require('threads').toggle() end, { desc = 'Toggle threads' })
+vim.keymap.set('n', '<leader>tp', function() require('threads').peek() end, { desc = 'Peek thread' })
 vim.keymap.set('n', '<leader>th', function() require('threads').history() end, { desc = 'Threads history' })
 vim.keymap.set('n', '<leader>td', function() require('threads').delete() end, { desc = 'Delete thread' })
 vim.keymap.set('n', '<leader>tD', function() require('threads').delete_all() end, { desc = 'Delete all threads' })
@@ -95,6 +96,7 @@ vim.keymap.set('n', '<leader>tD', function() require('threads').delete_all() end
 | `:ThreadHistory [all]` | Interactive window with all threads, closed ones included. |
 | `:ThreadShow [id]` | Full conversation in a floating window (`!` = split, navigable/searchable). |
 | `:ThreadExpand [id]` | Expand/collapse the thread inline (show all message lines). |
+| `:ThreadPeek [id]` | Peek the thread in a cursor-relative float (like `vim.diagnostic.open_float`). |
 | `:ThreadNext` / `:ThreadPrev` | Jump between threads. |
 
 Commands accept full ids or unique id prefixes with completion.
@@ -145,6 +147,12 @@ require('threads').setup({
     border = 'rounded',
     split = 'below',   -- 'below' | 'above' | 'left' | 'right'
     split_size = 0.4,
+  },
+  peek = {
+    width = 80,        -- max width
+    height = 15,       -- max height
+    border = 'rounded',
+    focus = true,      -- enter the float so you can navigate it
   },
   history = { width = 0.85, height = 0.8, border = 'rounded' },
 
@@ -221,6 +229,7 @@ threads.list(opts)           -- opts: { bufnr, all, include_closed, sort = 'upda
 threads.next() / threads.prev()
 threads.jump(t)              -- focus the file and place the cursor
 threads.show(t)              -- conversation (opts.window = "float" | "split")
+threads.peek(t)              -- cursor-relative float (toggle)
 threads.expand(t, true)      -- expand/collapse inline
 threads.toggle_expand(t)
 threads.history({ all = false })

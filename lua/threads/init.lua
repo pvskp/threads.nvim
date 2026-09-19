@@ -135,6 +135,11 @@ function M.expand(...)
   return core.expand(...)
 end
 
+function M.peek(...)
+  ensure()
+  return core.peek(...)
+end
+
 function M.toggle_expand(...)
   ensure()
   return core.toggle_expand(...)

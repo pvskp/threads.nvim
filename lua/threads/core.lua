@@ -61,6 +61,7 @@ function M.apply_keymaps()
     prev = { 'n', function() M.prev() end, 'previous thread' },
     delete = { 'n', function() M.delete() end, 'delete thread' },
     show = { 'n', function() M.show() end, 'show thread' },
+    peek = { 'n', function() M.peek() end, 'peek thread' },
     history = { 'n', function() M.history() end, 'threads history' },
   }
   for name, lhs in pairs(maps) do
@@ -1216,6 +1217,18 @@ function M.show(t, opts)
     return
   end
   return ui_show.open(t, opts)
+end
+
+function M.peek(t, opts)
+  if type(t) == 'string' then
+    t = M.get(t)
+  end
+  t = t or M.current()
+  if not t then
+    util.notify('no thread here', vim.log.levels.WARN)
+    return
+  end
+  return ui_show.peek(t, opts)
 end
 
 --- Expand/collapse a thread's inline rendering (shows all message lines).

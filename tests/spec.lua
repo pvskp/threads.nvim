@@ -320,7 +320,7 @@ test('user commands are registered', function()
     'ThreadNew', 'ThreadSend', 'ThreadSendAll', 'ThreadApply', 'ThreadApplyAll',
     'ThreadComment', 'ThreadReply', 'ThreadCancel', 'ThreadClose', 'ThreadToggle',
     'ThreadDelete', 'ThreadDeleteAll', 'ThreadHistory', 'ThreadShow', 'ThreadExpand',
-    'ThreadNext', 'ThreadPrev',
+    'ThreadPeek', 'ThreadNext', 'ThreadPrev',
   }
   for _, name in ipairs(names) do
     ok(cmds[name], 'missing command ' .. name)
@@ -546,6 +546,18 @@ test('expand shows the full message inline', function()
   threads.toggle_expand(t)
   ok(threads.get(t.id)._expanded ~= true, 'not collapsed')
   threads.setup({ storage = { dir = datadir } })
+end)
+
+--------------------------------------------------------------------------
+test('peek opens a cursor-relative float and toggles', function()
+  fresh_buffer('peek.lua', { 'z' })
+  local t = threads.create({ range = { start_row = 0, start_col = 0, end_row = 0, end_col = 1 }, text = 'peek' })
+  local win = threads.peek(t)
+  ok(win and vim.api.nvim_win_is_valid(win), 'peek not opened')
+  ok(vim.api.nvim_win_get_config(win).relative ~= '', 'peek is not a float')
+  eq(vim.bo[vim.api.nvim_win_get_buf(win)].filetype, 'markdown')
+  threads.peek(t)
+  ok(not vim.api.nvim_win_is_valid(win), 'peek not closed on toggle')
 end)
 
 --------------------------------------------------------------------------

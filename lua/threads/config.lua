@@ -51,6 +51,14 @@ M.defaults = {
     split = 'below', -- 'below' | 'above' | 'left' | 'right'
     split_size = 0.4,
   },
+
+  -- Peek: cursor-relative float (like vim.diagnostic.open_float).
+  peek = {
+    width = 80, -- max width in columns
+    height = 15, -- max height in lines
+    border = 'rounded',
+    focus = true, -- enter the float so you can navigate it
+  },
   history = { width = 0.85, height = 0.8, border = 'rounded' },
 
   -- Optional convenience keymaps. Nothing is mapped unless you set this table.

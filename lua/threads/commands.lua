@@ -180,6 +180,16 @@ function M.register()
     desc = 'threads.nvim: expand/collapse the thread inline',
   })
 
+  vim.api.nvim_create_user_command('ThreadPeek', function(args)
+    with_thread(args, function(t)
+      threads().peek(t)
+    end)
+  end, {
+    nargs = '?',
+    complete = complete_ids,
+    desc = 'threads.nvim: peek the thread in a cursor-relative float',
+  })
+
   vim.api.nvim_create_user_command('ThreadNext', function()
     threads().next()
   end, { desc = 'threads.nvim: jump to the next thread' })

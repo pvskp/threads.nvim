@@ -4,6 +4,8 @@ local util = require('threads.util')
 
 local M = {}
 
+local active_peek = { win = nil, id = nil }
+
 local GUTTER = '  ▌ '
 
 local function format_ts(ts)
@@ -268,6 +270,69 @@ function M.open(t, opts)
     return open_split(buf, t, cfg, message_lines)
   end
   return open_float(buf, t, cfg, message_lines)
+end
+
+--- Cursor-relative peek, like vim.diagnostic.open_float. Calling it again for
+--- the same thread toggles the window closed.
+function M.peek(t, opts)
+  if not t then
+    return
+  end
+  if active_peek.win and vim.api.nvim_win_is_valid(active_peek.win) then
+    pcall(vim.api.nvim_win_close, active_peek.win, true)
+    local same = active_peek.id == t.id
+    active_peek.win, active_peek.id = nil, nil
+    if same then
+      return nil
+    end
+  end
+
+  opts = opts or {}
+  local cfg = opts.config or config.get().peek or {}
+  local buf, message_lines = make_buffer(t)
+  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  local maxw = 0
+  for _, l in ipairs(lines) do
+    maxw = math.max(maxw, vim.fn.strdisplaywidth(l))
+  end
+  local width = math.max(math.min(maxw + 2, cfg.width or 80), 20)
+  width = math.min(width, math.max(vim.o.columns - 4, 20))
+  local height = math.max(math.min(#lines, cfg.height or 15), 3)
+  height = math.min(height, math.max(vim.o.lines - 4, 3))
+
+  local win = vim.api.nvim_open_win(buf, cfg.focus ~= false, {
+    relative = opts.relative or 'cursor',
+    row = opts.row or 1,
+    col = opts.col or 0,
+    width = width,
+    height = height,
+    style = 'minimal',
+    border = cfg.border or 'rounded',
+    title = ' thread ' .. t.id:sub(1, 8) .. ' ',
+    title_pos = 'center',
+    focusable = true,
+    zindex = 60,
+  })
+  vim.wo[win].wrap = true
+  vim.wo[win].linebreak = true
+  vim.wo[win].winhighlight = 'NormalFloat:Normal,FloatBorder:ThreadsBorder,FloatTitle:ThreadsTitle'
+  apply_conceal(win, { conceal = config.get().show.conceal })
+  map_keys(buf, win, message_lines, function()
+    if vim.api.nvim_win_is_valid(win) then
+      pcall(vim.api.nvim_win_close, win, true)
+    end
+  end)
+  active_peek.win, active_peek.id = win, t.id
+  vim.api.nvim_create_autocmd('WinClosed', {
+    pattern = tostring(win),
+    once = true,
+    callback = function()
+      if active_peek.win == win then
+        active_peek.win, active_peek.id = nil, nil
+      end
+    end,
+  })
+  return win
 end
 
 return M
