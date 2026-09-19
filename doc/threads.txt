@@ -1,0 +1,150 @@
+*threads.nvim*                     Interactive LLM threads around text objects
+
+==============================================================================
+INTRODUCTION                                             *threads.nvim*
+
+threads.nvim lets you anchor comments and questions to text ranges in a file,
+send them to any agent CLI you have installed (opencode, codex, claude, pi,
+...), and read the answers inline. Threads are virtual: they are rendered with
+extmarks/virt_lines and never written into the file. They are persisted as one
+JSON file per source file under `stdpath('data')/threads.nvim/`.
+
+Requires Neovim >= 0.10.
+
+==============================================================================
+SETUP                                                 *threads.setup()*
+
+Call |threads.setup()| once (optional, defaults auto-detect an agent): >lua
+
+  require('threads').setup({
+    agent = { cmd = { 'opencode', 'run', '--auto' }, mode = 'arg' },
+    keymaps = { next = ']r', prev = '[r' },
+  })
+<
+`agent.cmd` may be an argv table, a shell string (prompt on stdin), or a
+function(prompt, ctx) returning either. `mode` is "arg" or "stdin". Sites:
+`opencode run --auto`, `claude -p --permission-mode acceptEdits`,
+`codex exec --full-auto`, `pi -p`.
+
+No keymaps are set unless `keymaps` is given. See |threads-keymaps|.
+
+==============================================================================
+COMMANDS                                             *threads-commands*
+
+:ThreadNew                                                          *:ThreadNew*
+    Create a thread on the current line or the visual range. Opens a
+    floating input. `:ThreadNew!` creates and sends in one step.
+
+:ThreadSend [id]                                                   *:ThreadSend*
+    Send the thread under the cursor (or the given id/prefix). Bang sends in
+    apply mode.
+
+:ThreadSendAll [all]                                            *:ThreadSendAll*
+    Send all pending threads in the buffer, or in every known file with
+    `all`. Requests run concurrently.
+
+:ThreadReply [id]                                                 *:ThreadReply*
+    Prompt for a follow-up message and send it (multi-turn).
+
+:ThreadApply [id]                                               *:ThreadApply*
+    Send in apply mode: the agent edits the file itself and Neovim reloads
+    changed buffers. Neovim never applies diffs.
+
+:ThreadApplyAll [all]                                       *:ThreadApplyAll*
+    Apply mode for all pending threads.
+
+:ThreadCancel [id]                                             *:ThreadCancel*
+    Stop a running request.
+
+:ThreadClose [id]                                               *:ThreadClose*
+    Close a thread manually; it remains in the history.
+
+:ThreadToggle                                                      *:ThreadToggle*
+    Toggle thread rendering in the current buffer. `:ThreadToggle!` toggles
+    every buffer.
+
+:ThreadDelete [id]                                             *:ThreadDelete*
+    Delete one thread (also stops it if running).
+
+:ThreadDeleteAll [all]                                      *:ThreadDeleteAll*
+    Delete all threads in the buffer; bang or `all` deletes every file.
+
+:ThreadHistory [all]                                          *:ThreadHistory*
+    Interactive window listing threads, closed ones included. `<CR>` jump,
+    `o` show, `d` delete, `q` quit.
+
+:ThreadShow [id]                                                 *:ThreadShow*
+    Show the full conversation in a floating window.
+
+:ThreadNext / :ThreadPrev                                  *:ThreadNext*
+                                                           *:ThreadPrev*
+    Jump to the next/previous thread.
+
+==============================================================================
+LUA API                                                  *threads-api*
+
+>lua
+  local threads = require('threads')
+
+  threads.create({ range = { start_row, start_col, end_row, end_col }, text = '...' })
+  threads.send(t, { action = 'ask' | 'apply' })
+  threads.send_all({ all = false, action = 'ask' })
+  threads.reply(t, { text = '...' })
+  threads.apply(t)
+  threads.cancel(t)
+  threads.close(t)
+  threads.delete(t)
+  threads.delete_all({ all = false })
+  threads.toggle(all)
+  threads.current()                -- thread under the cursor
+  threads.get(id)                  -- full id or unique prefix, searches disk
+  threads.list(opts)               -- { bufnr, all, include_closed, sort }
+  threads.next() / threads.prev()
+  threads.jump(t)                  -- focus file + cursor
+  threads.show(t)                  -- floating conversation
+  threads.history({ all = false })
+  threads.status()                 -- { pending, sent, answered, closed, error, total }
+  threads.statusline()             -- compact string for statuslines
+<
+`threads.api` exposes `list`, `get`, `current`, `jump`, `show`, `status` and
+`events` for picker integrations.
+
+Events: >lua
+  local id = threads.on('answered', function(t) ... end)
+  threads.off(id)
+<
+Available: created, sent, answered, error, closed, canceled, deleted, cleared,
+toggled, jumped. They are also fired as `User ThreadsAnswered` autocmds.
+
+==============================================================================
+KEYMAPS                                                 *threads-keymaps*
+
+Nothing is mapped by default. Either pass `keymaps = { ... }` to
+|threads.setup()| or map the Lua API yourself: >lua
+
+  vim.keymap.set('n', ']r', function() require('threads').next() end)
+  vim.keymap.set('n', '[r', function() require('threads').prev() end)
+  vim.keymap.set('v', '<leader>tc', ":<C-u>lua require('threads').create()<CR>")
+<
+Supported setup names: new, new_visual, send, send_all, reply, apply, cancel,
+close, toggle, next, prev, delete, show, history.
+
+==============================================================================
+STATES                                                   *threads-states*
+
+pending   Created, not sent yet.
+sent      Request running (spinner shown).
+answered  Agent replied; more turns can be added with |:ThreadReply|.
+closed    Source text changed, or closed manually; kept in history.
+error     Agent failed or timed out; the error is shown inline.
+
+==============================================================================
+STORAGE                                               *threads-storage*
+
+One JSON file per source file:
+`stdpath('data')/threads.nvim/<sha256(absolute-path)>.json`.
+Editing the anchored text closes a thread; inserting lines above it moves the
+anchor. Closed threads older than `storage.max_threads` are pruned.
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:
