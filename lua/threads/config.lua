@@ -42,7 +42,14 @@ M.defaults = {
   },
 
   input = { width = 0.6, height = 4, border = 'rounded' },
-  show = { width = 0.8, height = 0.8, border = 'rounded' },
+  show = {
+    window = 'float', -- 'float' | 'split'
+    width = 0.8,
+    height = 0.8,
+    border = 'rounded',
+    split = 'below', -- 'below' | 'above' | 'left' | 'right'
+    split_size = 0.4,
+  },
   history = { width = 0.85, height = 0.8, border = 'rounded' },
 
   -- Optional convenience keymaps. Nothing is mapped unless you set this table.

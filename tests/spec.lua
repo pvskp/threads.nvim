@@ -319,8 +319,8 @@ test('user commands are registered', function()
   local names = {
     'ThreadNew', 'ThreadSend', 'ThreadSendAll', 'ThreadApply', 'ThreadApplyAll',
     'ThreadComment', 'ThreadReply', 'ThreadCancel', 'ThreadClose', 'ThreadToggle',
-    'ThreadDelete', 'ThreadDeleteAll', 'ThreadHistory', 'ThreadShow', 'ThreadNext',
-    'ThreadPrev',
+    'ThreadDelete', 'ThreadDeleteAll', 'ThreadHistory', 'ThreadShow', 'ThreadExpand',
+    'ThreadNext', 'ThreadPrev',
   }
   for _, name in ipairs(names) do
     ok(cmds[name], 'missing command ' .. name)
@@ -503,6 +503,34 @@ test('markdown rendering handles headings, lists and fences', function()
   eq(text[1], 'Title')
   eq(text[2], '• item')
   eq(text[3], 'code line')
+end)
+
+--------------------------------------------------------------------------
+test('ThreadShow split opens a navigable markdown window', function()
+  fresh_buffer('showsplit.lua', { 'z' })
+  local t = threads.create({ range = { start_row = 0, start_col = 0, end_row = 0, end_col = 1 }, text = 'split' })
+  local win = threads.show(t, { window = 'split' })
+  ok(win and vim.api.nvim_win_is_valid(win), 'split not opened')
+  eq(vim.bo[vim.api.nvim_win_get_buf(win)].filetype, 'markdown')
+  eq(vim.api.nvim_get_current_win(), win)
+  vim.api.nvim_win_close(win, true)
+end)
+
+--------------------------------------------------------------------------
+test('expand shows the full message inline', function()
+  fresh_buffer('expand.lua', { 'x' })
+  threads.setup({ storage = { dir = datadir }, display = { max_message_lines = 2, max_lines = 4 } })
+  local text = table.concat({ 'l1', 'l2', 'l3', 'l4', 'l5', 'l6', 'l7', 'l8' }, '\n')
+  local t = threads.create({ range = { start_row = 0, start_col = 0, end_row = 0, end_col = 1 }, text = text })
+  local compact = require('threads.render').build(t)
+  ok(#compact <= 5, 'expected capped render, got ' .. #compact)
+  threads.toggle_expand(t)
+  ok(threads.get(t.id)._expanded == true, 'not expanded')
+  local full = require('threads.render').build(t)
+  ok(#full > #compact, 'expanded render should be longer')
+  threads.toggle_expand(t)
+  ok(threads.get(t.id)._expanded ~= true, 'not collapsed')
+  threads.setup({ storage = { dir = datadir } })
 end)
 
 --------------------------------------------------------------------------

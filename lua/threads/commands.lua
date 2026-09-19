@@ -161,9 +161,24 @@ function M.register()
 
   vim.api.nvim_create_user_command('ThreadShow', function(args)
     with_thread(args, function(t)
-      threads().show(t)
+      threads().show(t, { window = args.bang and 'split' or nil })
     end)
-  end, { nargs = '?', complete = complete_ids, desc = 'threads.nvim: open a thread in a floating window' })
+  end, {
+    nargs = '?',
+    bang = true,
+    complete = complete_ids,
+    desc = 'threads.nvim: open a thread (bang = split window)',
+  })
+
+  vim.api.nvim_create_user_command('ThreadExpand', function(args)
+    with_thread(args, function(t)
+      threads().toggle_expand(t)
+    end)
+  end, {
+    nargs = '?',
+    complete = complete_ids,
+    desc = 'threads.nvim: expand/collapse the thread inline',
+  })
 
   vim.api.nvim_create_user_command('ThreadNext', function()
     threads().next()

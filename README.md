@@ -93,7 +93,8 @@ vim.keymap.set('n', '<leader>tD', function() require('threads').delete_all() end
 | `:ThreadDelete [id]` | Delete one thread. |
 | `:ThreadDeleteAll [all]` | Delete all threads in the buffer (`!`/`all` = every file). |
 | `:ThreadHistory [all]` | Interactive window with all threads, closed ones included. |
-| `:ThreadShow [id]` | Full conversation in a floating window. |
+| `:ThreadShow [id]` | Full conversation in a floating window (`!` = split, navigable/searchable). |
+| `:ThreadExpand [id]` | Expand/collapse the thread inline (show all message lines). |
 | `:ThreadNext` / `:ThreadPrev` | Jump between threads. |
 
 Commands accept full ids or unique id prefixes with completion.
@@ -132,7 +133,14 @@ require('threads').setup({
   },
 
   input = { width = 0.6, height = 4, border = 'rounded' },
-  show = { width = 0.8, height = 0.8, border = 'rounded' },
+  show = {
+    window = 'float',  -- 'float' | 'split'
+    width = 0.8,
+    height = 0.8,
+    border = 'rounded',
+    split = 'below',   -- 'below' | 'above' | 'left' | 'right'
+    split_size = 0.4,
+  },
   history = { width = 0.85, height = 0.8, border = 'rounded' },
 
   -- Optional: set these and threads.nvim maps them for you. Nothing is mapped by default.
@@ -207,7 +215,9 @@ threads.get(id)              -- by full id or unique prefix (searches disk too)
 threads.list(opts)           -- opts: { bufnr, all, include_closed, sort = 'updated' }
 threads.next() / threads.prev()
 threads.jump(t)              -- focus the file and place the cursor
-threads.show(t)              -- floating conversation
+threads.show(t)              -- conversation (opts.window = "float" | "split")
+threads.expand(t, true)      -- expand/collapse inline
+threads.toggle_expand(t)
 threads.history({ all = false })
 threads.status()             -- { pending, sent, answered, closed, error, total }
 threads.statusline()         -- compact string for statuslines
@@ -224,8 +234,8 @@ threads.off(id)
 ```
 
 Events: `created`, `sent`, `answered`, `error`, `closed`, `canceled`,
-`commented`, `deleted`, `cleared`, `toggled`, `jumped`. They also fire as `User
-ThreadsAnswered`, etc.
+`commented`, `expanded`, `deleted`, `cleared`, `toggled`, `jumped`. They also
+fire as `User ThreadsAnswered`, etc.
 
 ### Telescope picker example
 

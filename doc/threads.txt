@@ -84,7 +84,13 @@ COMMANDS                                             *threads-commands*
     `o` show, `d` delete, `q` quit.
 
 :ThreadShow [id]                                                 *:ThreadShow*
-    Show the full conversation in a floating window.
+    Show the full conversation. By default in a floating window; with a bang
+    (`:ThreadShow!`) in a normal split that you can navigate, search and yank
+    from. Configure with `show = { window = "float" | "split", ... }`.
+
+:ThreadExpand [id]                                             *:ThreadExpand*
+    Expand/collapse the thread inline, showing all message lines instead of
+    the `display.max_message_lines` cut.
 
 :ThreadNext / :ThreadPrev                                  *:ThreadNext*
                                                            *:ThreadPrev*
@@ -112,7 +118,9 @@ LUA API                                                  *threads-api*
   threads.list(opts)               -- { bufnr, all, include_closed, sort }
   threads.next() / threads.prev()
   threads.jump(t)                  -- focus file + cursor
-  threads.show(t)                  -- floating conversation
+  threads.show(t)                  -- opts.window = "float" | "split"
+  threads.expand(t, true)          -- expand/collapse inline
+  threads.toggle_expand(t)
   threads.history({ all = false })
   threads.status()                 -- { pending, sent, answered, closed, error, total }
   threads.statusline()             -- compact string for statuslines
@@ -125,7 +133,7 @@ Events: >lua
   threads.off(id)
 <
 Available: created, sent, answered, error, closed, canceled, commented,
-deleted, cleared, toggled, jumped. They are also fired as `User ThreadsAnswered` autocmds.
+expanded, deleted, cleared, toggled, jumped. They are also fired as `User ThreadsAnswered` autocmds.
 
 ==============================================================================
 KEYMAPS                                                 *threads-keymaps*

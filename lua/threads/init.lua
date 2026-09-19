@@ -130,6 +130,16 @@ function M.show(...)
   return core.show(...)
 end
 
+function M.expand(...)
+  ensure()
+  return core.expand(...)
+end
+
+function M.toggle_expand(...)
+  ensure()
+  return core.toggle_expand(...)
+end
+
 function M.history(...)
   ensure()
   return core.history(...)

@@ -77,8 +77,12 @@ function M.build(t)
     { 'thread ' .. t.id:sub(1, 8) .. ' ', 'ThreadsId' },
     { '[' .. label_for(t) .. ']', state_hl(t) },
   })
+  if t._expanded then
+    add({ { pad .. '▌ ', 'ThreadsBorder' }, { '⤢ expanded (collapsed with :ThreadExpand)', 'ThreadsMuted' } })
+  end
 
-  local max_message_lines = d.max_message_lines or 8
+  local expanded = t._expanded == true
+  local max_message_lines = expanded and math.huge or (d.max_message_lines or 8)
   for _, m in ipairs(t.messages or {}) do
     local is_user = m.role == 'user'
     local who = is_user and 'you' or (t.agent or 'agent')
@@ -132,7 +136,7 @@ function M.build(t)
     add({ { pad .. '  ', 'ThreadsBorder' }, { 'closed: ' .. t.closed_reason, 'ThreadsMuted' } })
   end
 
-  local max_lines = d.max_lines or 30
+  local max_lines = expanded and math.huge or (d.max_lines or 30)
   if #lines > max_lines then
     local trimmed = {}
     for i = 1, max_lines - 1 do

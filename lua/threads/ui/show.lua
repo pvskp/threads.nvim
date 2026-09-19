@@ -1,4 +1,4 @@
--- threads.nvim: read-only floating view of a full conversation
+-- threads.nvim: floating or split view of a full conversation
 local config = require('threads.config')
 local util = require('threads.util')
 
@@ -49,19 +49,23 @@ function M.lines_for(t)
   return out
 end
 
-function M.open(t)
-  if not t then
-    return
-  end
-  local cfg = config.get().show or {}
+local function make_buffer(t)
   local buf = vim.api.nvim_create_buf(false, true)
   vim.bo[buf].buftype = 'nofile'
   vim.bo[buf].bufhidden = 'wipe'
   vim.bo[buf].swapfile = false
-  vim.bo[buf].filetype = 'markdown'
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, M.lines_for(t))
   vim.bo[buf].modifiable = false
+  vim.bo[buf].filetype = 'markdown'
+  return buf
+end
 
+local function map_close(buf, close)
+  vim.keymap.set('n', 'q', close, { buffer = buf, nowait = true, silent = true, desc = 'Close thread' })
+  vim.keymap.set('n', '<Esc>', close, { buffer = buf, nowait = true, silent = true, desc = 'Close thread' })
+end
+
+local function open_float(buf, t, cfg)
   local width = math.max(math.floor(vim.o.columns * (cfg.width or 0.8)), 30)
   local height = math.max(math.floor(vim.o.lines * (cfg.height or 0.8)), 5)
   local row = math.max(math.floor((vim.o.lines - height) / 2), 0)
@@ -77,19 +81,63 @@ function M.open(t)
     border = cfg.border or 'rounded',
     title = ' thread ' .. t.id:sub(1, 8) .. ' ',
     title_pos = 'center',
+    footer = ' q close ',
+    footer_pos = 'center',
   })
   vim.wo[win].wrap = true
   vim.wo[win].linebreak = true
-  vim.wo[win].winhighlight = 'NormalFloat:Normal,FloatBorder:ThreadsBorder,FloatTitle:ThreadsTitle'
-
-  local function close()
+  vim.wo[win].winhighlight = 'NormalFloat:Normal,FloatBorder:ThreadsBorder,FloatTitle:ThreadsTitle,FloatFooter:ThreadsMuted'
+  map_close(buf, function()
     if vim.api.nvim_win_is_valid(win) then
       pcall(vim.api.nvim_win_close, win, true)
     end
-  end
-  vim.keymap.set('n', 'q', close, { buffer = buf, nowait = true, silent = true })
-  vim.keymap.set('n', '<Esc>', close, { buffer = buf, nowait = true, silent = true })
+  end)
   return win
+end
+
+local function open_split(buf, t, cfg)
+  local size = math.max(math.min(cfg.split_size or 0.4, 0.95), 0.1)
+  local dir = cfg.split or 'below'
+  if dir == 'left' or dir == 'right' then
+    local width = math.max(math.floor(vim.o.columns * size), 20)
+    local cmd = (dir == 'left' and 'topleft ' or 'belowright ') .. width .. 'vsplit'
+    vim.cmd(cmd)
+  else
+    local height = math.max(math.floor(vim.o.lines * size), 5)
+    local cmd = (dir == 'above' and 'aboveleft ' or 'belowright ') .. height .. 'split'
+    vim.cmd(cmd)
+  end
+  local win = vim.api.nvim_get_current_win()
+  vim.api.nvim_win_set_buf(win, buf)
+  vim.wo[win].wrap = true
+  vim.wo[win].linebreak = true
+  vim.wo[win].number = false
+  vim.wo[win].relativenumber = false
+  vim.wo[win].signcolumn = 'no'
+  vim.wo[win].winfixheight = (dir ~= 'left' and dir ~= 'right')
+  vim.wo[win].winhighlight = 'Normal:Normal,WinBar:ThreadsTitle'
+  vim.wo[win].winbar = ' thread ' .. t.id:sub(1, 8) .. ' — q to close '
+  map_close(buf, function()
+    if vim.api.nvim_win_is_valid(win) then
+      pcall(vim.api.nvim_win_close, win, true)
+    end
+  end)
+  return win
+end
+
+--- Open a thread. opts.window = "float" | "split" (defaults to config.show.window).
+function M.open(t, opts)
+  if not t then
+    return
+  end
+  opts = opts or {}
+  local cfg = config.get().show or {}
+  local window = opts.window or cfg.window or 'float'
+  local buf = make_buffer(t)
+  if window == 'split' then
+    return open_split(buf, t, cfg)
+  end
+  return open_float(buf, t, cfg)
 end
 
 return M

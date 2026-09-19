@@ -1206,7 +1206,7 @@ function M.prev(opts)
   return target
 end
 
-function M.show(t)
+function M.show(t, opts)
   if type(t) == 'string' then
     t = M.get(t)
   end
@@ -1215,7 +1215,31 @@ function M.show(t)
     util.notify('no thread here', vim.log.levels.WARN)
     return
   end
-  return ui_show.open(t)
+  return ui_show.open(t, opts)
+end
+
+--- Expand/collapse a thread's inline rendering (shows all message lines).
+function M.expand(t, expanded)
+  if type(t) == 'string' then
+    t = M.get(t)
+  end
+  t = t or M.current()
+  if not t then
+    util.notify('no thread here', vim.log.levels.WARN)
+    return nil
+  end
+  t = state.threads[t.id] or t
+  if expanded == nil then
+    expanded = not t._expanded
+  end
+  t._expanded = expanded or nil
+  render().thread(t)
+  events.emit('expanded', M.view(t))
+  return t._expanded
+end
+
+function M.toggle_expand(t)
+  return M.expand(t)
 end
 
 function M.history(opts)
