@@ -433,36 +433,112 @@ end
 -- range helpers
 --------------------------------------------------------------------------
 
+local function current_visual_mode()
+  local mode = vim.fn.mode()
+  if mode == 'v' or mode == 'V' or mode == '\22' then
+    return mode
+  end
+  return nil
+end
+
+--- Range from the '< and '> marks (0-indexed, end-col exclusive). Used when a
+--- visual mapping cleared the command range with <C-u>.
+local function marks_range(bufnr)
+  local a = vim.api.nvim_buf_get_mark(bufnr, '<')
+  local b = vim.api.nvim_buf_get_mark(bufnr, '>')
+  if a[1] <= 0 or b[1] <= 0 then
+    return nil
+  end
+  if vim.fn.visualmode() == 'v' then
+    local start, endm = a, b
+    if a[1] > b[1] or (a[1] == b[1] and a[2] > b[2]) then
+      start, endm = b, a
+    end
+    return {
+      start_row = start[1] - 1,
+      start_col = start[2],
+      end_row = endm[1] - 1,
+      end_col = endm[2] + 1,
+    }
+  end
+  local r1 = math.min(a[1], b[1])
+  local r2 = math.max(a[1], b[1])
+  return { start_row = r1 - 1, start_col = 0, end_row = r2 - 1 }
+end
+
 function M.resolve_range(bufnr, opts)
   opts = opts or {}
   if type(opts.range) == 'table' then
     return util.clamp_range(bufnr, opts.range)
   end
+
+  -- Called from a Lua visual-mode mapping while the selection is still active.
+  local vmode = current_visual_mode()
+  if vmode then
+    local a = vim.fn.getpos('v')
+    local b = vim.fn.getpos('.')
+    if a[2] > 0 and b[2] > 0 then
+      if vmode == 'v' then
+        local start, endm = a, b
+        if a[2] > b[2] or (a[2] == b[2] and a[3] > b[3]) then
+          start, endm = b, a
+        end
+        return util.clamp_range(bufnr, {
+          start_row = start[2] - 1,
+          start_col = start[3] - 1,
+          end_row = endm[2] - 1,
+          end_col = endm[3],
+        })
+      end
+      local r1 = math.min(a[2], b[2])
+      local r2 = math.max(a[2], b[2])
+      return util.clamp_range(bufnr, { start_row = r1 - 1, start_col = 0, end_row = r2 - 1 })
+    end
+  end
+
   local cursor_line = 1
   if vim.api.nvim_get_current_buf() == bufnr then
     cursor_line = vim.api.nvim_win_get_cursor(0)[1]
   end
-  local line1 = opts.line1 or cursor_line
-  local line2 = opts.line2 or line1
-  if not opts.had_range then
-    line1, line2 = cursor_line, cursor_line
-  end
-  line1, line2 = math.min(line1, line2), math.max(line1, line2)
 
-  local start_col, end_col = 0, nil
-  if opts.had_range then
-    local a = vim.api.nvim_buf_get_mark(bufnr, '<')
-    local b = vim.api.nvim_buf_get_mark(bufnr, '>')
-    if a[1] == line1 and b[1] == line2 and a[1] > 0 and vim.fn.visualmode() == 'v' then
-      start_col = a[2]
-      end_col = b[2] + 1
+  -- Explicit command range (':ThreadNew' or ":'<,'>ThreadNew").
+  if opts.had_range ~= nil then
+    local line1, line2
+    if opts.had_range then
+      line1 = opts.line1 or cursor_line
+      line2 = opts.line2 or line1
+    else
+      line1, line2 = cursor_line, cursor_line
     end
+    line1, line2 = math.min(line1, line2), math.max(line1, line2)
+    local start_col, end_col = 0, nil
+    if opts.had_range then
+      local a = vim.api.nvim_buf_get_mark(bufnr, '<')
+      local b = vim.api.nvim_buf_get_mark(bufnr, '>')
+      if a[1] == line1 and b[1] == line2 and a[1] > 0 and vim.fn.visualmode() == 'v' then
+        start_col = a[2]
+        end_col = b[2] + 1
+      end
+    end
+    return util.clamp_range(bufnr, {
+      start_row = line1 - 1,
+      start_col = start_col,
+      end_row = line2 - 1,
+      end_col = end_col,
+    })
   end
+
+  -- Lua mapping that cleared the range with <C-u>: fall back to visual marks.
+  local mr = marks_range(bufnr)
+  if mr then
+    return util.clamp_range(bufnr, mr)
+  end
+
+  -- Last resort: the current line.
   return util.clamp_range(bufnr, {
-    start_row = line1 - 1,
-    start_col = start_col,
-    end_row = line2 - 1,
-    end_col = end_col,
+    start_row = cursor_line - 1,
+    start_col = 0,
+    end_row = cursor_line - 1,
   })
 end
 

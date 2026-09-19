@@ -440,6 +440,33 @@ test('comment() aggregates messages before sending', function()
 end)
 
 --------------------------------------------------------------------------
+test('create() from a visual mapping uses the whole selection', function()
+  fresh_buffer('visualsel.lua', { 'l1', 'l2', 'l3', 'l4', 'l5', 'l6' })
+  vim.api.nvim_win_set_cursor(0, { 2, 0 })
+  vim.cmd('normal! Vjj') -- linewise selection over lines 2-4
+  vim.cmd('normal! \27')
+  local t = threads.create({ text = 'whole selection' }) -- like a :<C-u> mapping
+  ok(t, 'thread not created')
+  eq(t.range.start_row, 1)
+  eq(t.range.end_row, 3)
+  eq(t.range.start_col, 0)
+end)
+
+--------------------------------------------------------------------------
+test('create() from a charwise selection keeps columns', function()
+  fresh_buffer('visualchar.lua', { 'abcdef', 'ghijkl' })
+  vim.api.nvim_win_set_cursor(0, { 1, 1 })
+  vim.cmd('normal! vll')
+  vim.cmd('normal! \27')
+  local t = threads.create({ text = 'chars' })
+  ok(t, 'thread not created')
+  eq(t.range.start_row, 0)
+  eq(t.range.start_col, 1)
+  eq(t.range.end_col, 4)
+  eq(require('threads.util').text_in_range(0, t.range)[1], 'bcd')
+end)
+
+--------------------------------------------------------------------------
 
 print(('\n%d passed, %d failed'):format(passed, #failures))
 if #failures > 0 then
