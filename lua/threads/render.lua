@@ -92,20 +92,29 @@ function M.build(t)
     if content == '' then
       content = '(empty)'
     end
-    local wrapped = util.wrap(content, width)
+    local content_lines
+    if config.get().display.markdown ~= false then
+      content_lines = require('threads.markdown').to_lines(content, width)
+    else
+      content_lines = {}
+      for _, line in ipairs(util.wrap(content, width)) do
+        content_lines[#content_lines + 1] = { { line, 'ThreadsText' } }
+      end
+    end
     local shown = 0
-    for _, line in ipairs(wrapped) do
+    for _, line_chunks in ipairs(content_lines) do
       if shown >= max_message_lines then
         add({
           { pad .. '    ', 'ThreadsBorder' },
-          { ('… %d more line(s) — :ThreadShow'):format(#wrapped - shown), 'ThreadsMuted' },
+          { ('… %d more line(s) — :ThreadShow'):format(#content_lines - shown), 'ThreadsMuted' },
         })
         break
       end
-      add({
-        { pad .. '    ', 'ThreadsBorder' },
-        { line, 'ThreadsText' },
-      })
+      local chunks = { { pad .. '    ', 'ThreadsBorder' } }
+      for _, c in ipairs(line_chunks) do
+        chunks[#chunks + 1] = c
+      end
+      add(chunks)
       shown = shown + 1
     end
   end
@@ -255,6 +264,13 @@ function M.define_highlights()
     ThreadsStateClosed = { link = 'Comment' },
     ThreadsStateError = { link = 'DiagnosticError' },
     ThreadsTitle = { link = 'Title' },
+    ThreadsMdStrong = { link = 'Bold' },
+    ThreadsMdEmph = { link = 'Italic' },
+    ThreadsMdCode = { link = 'Special' },
+    ThreadsMdCodeBlock = { link = 'String' },
+    ThreadsMdLink = { link = 'Underlined' },
+    ThreadsMdStrike = { link = 'Comment' },
+    ThreadsMdHeading = { link = 'Title' },
   }
   for name, spec in pairs(groups) do
     vim.api.nvim_set_hl(0, name, spec)

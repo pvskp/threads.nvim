@@ -467,6 +467,45 @@ test('create() from a charwise selection keeps columns', function()
 end)
 
 --------------------------------------------------------------------------
+test('markdown rendering conceals inline markup', function()
+  local md = require('threads.markdown')
+  local lines = md.to_lines('**bold** and `code` and *em*', 80)
+  local flat = {}
+  for _, line in ipairs(lines) do
+    for _, c in ipairs(line) do
+      flat[#flat + 1] = c
+    end
+  end
+  local text = {}
+  local kinds = {}
+  for _, c in ipairs(flat) do
+    text[#text + 1] = c[1]
+    kinds[c[2]] = true
+  end
+  eq(table.concat(text), 'bold and code and em')
+  ok(kinds.ThreadsMdStrong, 'strong missing')
+  ok(kinds.ThreadsMdCode, 'code missing')
+  ok(kinds.ThreadsMdEmph, 'emph missing')
+end)
+
+--------------------------------------------------------------------------
+test('markdown rendering handles headings, lists and fences', function()
+  local md = require('threads.markdown')
+  local lines = md.to_lines('# Title\n- item\n```\ncode line\n```', 80)
+  local text = {}
+  for _, line in ipairs(lines) do
+    local s = {}
+    for _, c in ipairs(line) do
+      s[#s + 1] = c[1]
+    end
+    text[#text + 1] = table.concat(s)
+  end
+  eq(text[1], 'Title')
+  eq(text[2], '• item')
+  eq(text[3], 'code line')
+end)
+
+--------------------------------------------------------------------------
 
 print(('\n%d passed, %d failed'):format(passed, #failures))
 if #failures > 0 then

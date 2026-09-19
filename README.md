@@ -124,6 +124,7 @@ require('threads').setup({
   display = {
     enabled = true,
     signs = true,             -- sign-column indicator even when lines are hidden
+    markdown = true,          -- conceal markdown markup and style the text
     show_closed = false,      -- closed threads stay in :ThreadHistory
     max_message_lines = 8,    -- lines per message before "… more"
     max_lines = 30,           -- total virtual lines per thread
@@ -279,6 +280,9 @@ end)
 - Anchors are tracked with extmarks; rendering uses `virt_lines`, so the buffer
   text is untouched. Signs in the sign column mark every thread even when
   `:ThreadToggle` hides the virtual lines.
+- Answers are rendered as markdown: the markup is concealed and the text styled
+  (`**bold**`, `` `code` ``, headings, lists, quotes, fenced code). Turn it off
+  with `display = { markdown = false }`.
 - Editing the anchored text closes the thread (`closed`), keeping history.
   Inserting lines above/below moves the anchor instead.
 - Requests are plain `jobstart` processes: fully asynchronous and concurrent.

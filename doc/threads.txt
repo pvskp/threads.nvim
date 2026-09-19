@@ -31,6 +31,9 @@ No keymaps are set unless `keymaps` is given. See |threads-keymaps|.
 Every thread is marked in the sign column, even when virtual lines are hidden
 with |:ThreadToggle|. Disable the signs with `display = { signs = false }`.
 
+Answers are rendered as markdown (markup concealed and styled). Disable with
+`display = { markdown = false }`.
+
 ==============================================================================
 COMMANDS                                             *threads-commands*
 
