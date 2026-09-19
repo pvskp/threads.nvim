@@ -25,7 +25,7 @@ With `lazy.nvim`:
 
 ```lua
 {
-  'you/threads.nvim',
+  'pvskp/threads.nvim',
   config = function()
     require('threads').setup({
       agent = { cmd = { 'opencode', 'run', '--auto' } },
@@ -37,7 +37,7 @@ With `lazy.nvim`:
 With Neovim 0.12 `vim.pack`:
 
 ```lua
-vim.pack.add({ 'https://github.com/you/threads.nvim' })
+vim.pack.add({ 'https://github.com/pvskp/threads.nvim' })
 require('threads').setup()
 ```
 
