@@ -35,7 +35,7 @@ function M.prompt(opts)
     border = cfg.border or 'rounded',
     title = ' ' .. (opts.title or 'Threads') .. ' ',
     title_pos = 'center',
-    footer = opts.footer or ' <C-s> submit · <Esc> cancel ',
+    footer = opts.footer or ' <C-s>/<Esc> submit · q cancel ',
     footer_pos = 'center',
   })
   vim.wo[win].wrap = true
@@ -80,10 +80,11 @@ function M.prompt(opts)
   map('n', '<CR>', function()
     finish(true)
   end, { buffer = buf, nowait = true, silent = true, desc = 'submit' })
+  -- <Esc> in insert mode just leaves insert mode (default); in normal mode it submits.
+  map('n', '<Esc>', function()
+    finish(true)
+  end, { buffer = buf, nowait = true, silent = true, desc = 'submit' })
   map('n', 'q', function()
-    finish(false)
-  end, { buffer = buf, nowait = true, silent = true, desc = 'cancel' })
-  map('i', '<Esc>', function()
     finish(false)
   end, { buffer = buf, nowait = true, silent = true, desc = 'cancel' })
 

@@ -60,7 +60,9 @@ vim.keymap.set('n', '<leader>tD', function() require('threads').delete_all() end
 ## Workflow
 
 1. Select code in visual mode, run `:'<,'>ThreadNew` (or your map). A floating
-   window asks for a comment. The thread is stored as `pending`.
+   window asks for a comment. Type it and submit with `<C-s>`, or press
+   `<Esc>` to go to normal mode and `<Esc>` again to submit (`q` cancels).
+   The thread is stored as `pending`.
 2. Repeat on other ranges. Threads render under their lines, nothing is written
    to disk in the repo.
 3. `:ThreadSend` sends the thread under the cursor. `:ThreadSendAll` sends

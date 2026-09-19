@@ -378,6 +378,19 @@ test('input prompt callback receives multiline text', function()
 end)
 
 --------------------------------------------------------------------------
+test('input <Esc> submits in normal and is free in insert', function()
+  local handle = require('threads.ui.input').prompt({ title = 'esc test' })
+  local i_esc = vim.fn.maparg('<Esc>', 'i', false, true)
+  ok(vim.tbl_isempty(i_esc), 'insert <Esc> should not be mapped')
+  local n_esc = vim.fn.maparg('<Esc>', 'n', false, true)
+  ok(not vim.tbl_isempty(n_esc), 'normal <Esc> should submit')
+  ok(vim.tbl_isempty(vim.fn.maparg('<C-s>', 'n', false, true)) == false, '<C-s> missing in normal')
+  ok(vim.tbl_isempty(vim.fn.maparg('<C-s>', 'i', false, true)) == false, '<C-s> missing in insert')
+  ok(not vim.tbl_isempty(vim.fn.maparg('q', 'n', false, true)), 'q should cancel')
+  handle.close(false)
+end)
+
+--------------------------------------------------------------------------
 
 print(('\n%d passed, %d failed'):format(passed, #failures))
 if #failures > 0 then

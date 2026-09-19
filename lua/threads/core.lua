@@ -518,7 +518,7 @@ function M.create(opts)
   end
   ui_input.prompt({
     title = 'New thread',
-    footer = ' <C-s> add comment · <Esc> cancel ',
+    footer = ' <C-s>/<Esc> submit · q cancel ',
     on_submit = do_create,
   })
   return nil
@@ -557,7 +557,7 @@ function M.reply(t, opts)
   end
   ui_input.prompt({
     title = 'Reply to ' .. t.id:sub(1, 8),
-    footer = ' <C-s> send reply · <Esc> cancel ',
+    footer = ' <C-s>/<Esc> send · q cancel ',
     on_submit = add_and_send,
   })
   return nil
