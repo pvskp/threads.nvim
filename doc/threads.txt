@@ -86,7 +86,10 @@ COMMANDS                                             *threads-commands*
 :ThreadShow [id]                                                 *:ThreadShow*
     Show the full conversation. By default in a floating window; with a bang
     (`:ThreadShow!`) in a normal split that you can navigate, search and yank
-    from. Configure with `show = { window = "float" | "split", ... }`.
+    from. The view uses `filetype=markdown` with conceal enabled
+    (`conceallevel=2`); disable with `show = { conceal = false }`. Inside it,
+    `[[` / `]]` jump between messages and `q` closes. Configure window shape
+    with `show = { window = "float" | "split", ... }`.
 
 :ThreadExpand [id]                                             *:ThreadExpand*
     Expand/collapse the thread inline, showing all message lines instead of

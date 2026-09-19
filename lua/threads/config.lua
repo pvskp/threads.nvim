@@ -44,6 +44,7 @@ M.defaults = {
   input = { width = 0.6, height = 4, border = 'rounded' },
   show = {
     window = 'float', -- 'float' | 'split'
+    conceal = true, -- conceal markdown markup (conceallevel=2)
     width = 0.8,
     height = 0.8,
     border = 'rounded',

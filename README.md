@@ -101,6 +101,10 @@ Commands accept full ids or unique id prefixes with completion.
 
 Inside `:ThreadHistory`: `<CR>` jump, `o` open, `d` delete, `q` quit.
 
+Inside a thread view (`:ThreadShow`, `:ThreadShow!`): `[[` / `]]` jump between
+messages, `q` closes. The view uses `filetype=markdown` with conceal enabled, so
+the markup is rendered while you can still navigate, search and yank.
+
 ## Configuration
 
 ```lua
@@ -135,6 +139,7 @@ require('threads').setup({
   input = { width = 0.6, height = 4, border = 'rounded' },
   show = {
     window = 'float',  -- 'float' | 'split'
+    conceal = true,    -- conceal markdown markup in the view
     width = 0.8,
     height = 0.8,
     border = 'rounded',

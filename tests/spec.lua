@@ -422,7 +422,19 @@ test('show window uses markdown filetype', function()
   local win = threads.show(t)
   ok(win and vim.api.nvim_win_is_valid(win), 'show window not opened')
   eq(vim.bo[vim.api.nvim_win_get_buf(win)].filetype, 'markdown')
+  eq(vim.wo[win].conceallevel, 2)
   vim.api.nvim_win_close(win, true)
+end)
+
+--------------------------------------------------------------------------
+test('show exposes message lines for [[/]] navigation', function()
+  fresh_buffer('shownav.lua', { 'z' })
+  local t = threads.create({ range = { start_row = 0, start_col = 0, end_row = 0, end_col = 1 }, text = 'q1' })
+  threads.comment(t, { text = 'q2' })
+  local lines, message_lines = require('threads.ui.show').lines_for(t)
+  eq(#message_lines, 2)
+  ok(lines[message_lines[1]]:match('^── ') ~= nil)
+  ok(lines[message_lines[2]]:match('^── ') ~= nil)
 end)
 
 --------------------------------------------------------------------------
