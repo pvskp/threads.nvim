@@ -4,6 +4,8 @@ local util = require('threads.util')
 
 local M = {}
 
+local GUTTER = '  ▌ '
+
 local function format_ts(ts)
   if not ts or ts == 0 then
     return '?'
@@ -11,46 +13,126 @@ local function format_ts(ts)
   return os.date('%Y-%m-%d %H:%M', ts)
 end
 
---- Build the Show buffer lines. Also returns the 1-based line numbers of the
---- message headers (used by [[ / ]] navigation).
-function M.lines_for(t)
+local function icon_for(t)
+  local icons = config.get().icons
+  return icons[t.state] or '?'
+end
+
+local function state_hl(t)
+  local map = {
+    pending = 'ThreadsStatePending',
+    sent = 'ThreadsStateSent',
+    answered = 'ThreadsStateAnswered',
+    closed = 'ThreadsStateClosed',
+    error = 'ThreadsStateError',
+  }
+  return map[t.state] or 'ThreadsStatePending'
+end
+
+local function label_for(t)
+  local labels = { pending = 'pending', sent = 'waiting', answered = 'answered', closed = 'closed', error = 'error' }
+  local label = labels[t.state] or t.state
+  label = label .. ' · ' .. (t.action == 'apply' and 'apply' or 'ask')
+  return label
+end
+
+--- Build the Show buffer as styled lines. Each line is a list of
+--- { text, hl_group } chunks (hl may be nil to keep native markdown colors).
+--- Also returns the 1-based line numbers of the message headers.
+function M.chunks_for(t)
   local out = {}
   local message_lines = {}
-  local function add(s)
-    out[#out + 1] = s
+  local width = math.max(math.min(vim.o.columns - 12, 100), 30)
+
+  local function card(chunks)
+    local line = { { GUTTER, 'ThreadsBorder' } }
+    for _, c in ipairs(chunks) do
+      line[#line + 1] = c
+    end
+    out[#out + 1] = line
   end
-  add('threads.nvim — thread ' .. t.id)
-  add('')
-  add('state:   ' .. t.state .. (t.action == 'apply' and ' (apply)' or ''))
-  add('file:    ' .. t.file)
-  add('lines:   ' .. ((t.range and t.range.start_row or 0) + 1) .. '-' .. ((t.range and t.range.end_row or 0) + 1))
-  add('agent:   ' .. (t.agent or '-'))
-  add('created: ' .. format_ts(t.created_at))
-  add('updated: ' .. format_ts(t.updated_at))
+
+  local function meta(label, value)
+    card({ { string.format('%-8s', label), 'ThreadsMuted' }, { value or '', 'ThreadsMeta' } })
+  end
+
+  card({
+    { icon_for(t) .. ' ', state_hl(t) },
+    { 'thread ', 'ThreadsMuted' },
+    { t.id:sub(1, 8), 'ThreadsId' },
+    { '  [' .. label_for(t) .. ']', state_hl(t) },
+  })
+  meta('file', t.file)
+  meta('lines', ((t.range and t.range.start_row or 0) + 1) .. '-' .. ((t.range and t.range.end_row or 0) + 1))
+  meta('agent', t.agent or '-')
+  meta('created', format_ts(t.created_at))
+  meta('updated', format_ts(t.updated_at))
   if t.closed_reason then
-    add('closed:  ' .. t.closed_reason)
+    meta('closed', t.closed_reason)
   end
   if t.error and t.error ~= '' then
-    add('error:   ' .. t.error:gsub('\n', ' '))
+    meta('error', t.error:gsub('\n', ' '))
   end
-  add('')
-  add('── source ─────────────────────────────')
+
+  card({ { 'source', 'ThreadsMuted' } })
   for _, line in ipairs(t.snapshot or {}) do
-    add(line)
+    card({ { '  ', 'ThreadsBorder' }, { line, 'ThreadsMdCodeBlock' } })
   end
+
   for _, m in ipairs(t.messages or {}) do
-    add('')
+    out[#out + 1] = { { GUTTER, 'ThreadsBorder' } }
     message_lines[#message_lines + 1] = #out + 1
-    add(('── %s (%s) ──'):format(m.role == 'user' and 'you' or (t.agent or 'agent'), format_ts(m.ts)))
-    local wrapped = util.wrap(m.content or '', 100)
-    if #wrapped == 0 then
-      wrapped = { '' }
-    end
-    for _, line in ipairs(wrapped) do
-      add(line)
+    local is_user = m.role == 'user'
+    local who = is_user and 'you' or (t.agent or 'agent')
+    local who_hl = is_user and 'ThreadsLabelUser' or 'ThreadsLabelAssistant'
+    card({ { is_user and '▸ ' or '◆ ', who_hl }, { who, who_hl }, { '  ' .. format_ts(m.ts), 'ThreadsMuted' } })
+    -- Content stays as raw markdown (2-space indent keeps block syntax valid)
+    -- so 'filetype=markdown' + conceal renders it natively.
+    for _, raw in ipairs(util.wrap(m.content or '', width)) do
+      out[#out + 1] = { { '  ', 'ThreadsBorder' }, { raw, nil } }
     end
   end
   return out, message_lines
+end
+
+--- Plain-text version of the Show lines (kept for compatibility/tests).
+function M.lines_for(t)
+  local chunk_lines, message_lines = M.chunks_for(t)
+  local lines = {}
+  for i, chunks in ipairs(chunk_lines) do
+    local parts = {}
+    for _, c in ipairs(chunks) do
+      parts[#parts + 1] = c[1]
+    end
+    lines[i] = table.concat(parts)
+  end
+  return lines, message_lines
+end
+
+local function set_chunked_lines(buf, chunk_lines)
+  local texts = {}
+  local specs = {}
+  for i, chunks in ipairs(chunk_lines) do
+    local parts = {}
+    local col = 0
+    for _, c in ipairs(chunks) do
+      local text, hl = c[1], c[2]
+      if text ~= '' then
+        parts[#parts + 1] = text
+        if hl then
+          specs[#specs + 1] = { i - 1, col, col + #text, hl }
+        end
+        col = col + #text
+      end
+    end
+    texts[i] = table.concat(parts)
+  end
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, texts)
+  local ns = vim.api.nvim_create_namespace('threads.nvim.show')
+  vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
+  for _, s in ipairs(specs) do
+    pcall(vim.api.nvim_buf_add_highlight, buf, ns, s[4], s[1], s[2], s[3])
+  end
 end
 
 local function make_buffer(t)
@@ -58,8 +140,8 @@ local function make_buffer(t)
   vim.bo[buf].buftype = 'nofile'
   vim.bo[buf].bufhidden = 'wipe'
   vim.bo[buf].swapfile = false
-  local lines, message_lines = M.lines_for(t)
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  local chunk_lines, message_lines = M.chunks_for(t)
+  set_chunked_lines(buf, chunk_lines)
   vim.bo[buf].modifiable = false
   vim.bo[buf].filetype = 'markdown'
   return buf, message_lines

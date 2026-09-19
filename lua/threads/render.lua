@@ -275,6 +275,7 @@ function M.define_highlights()
     ThreadsMdLink = { link = 'Underlined' },
     ThreadsMdStrike = { link = 'Comment' },
     ThreadsMdHeading = { link = 'Title' },
+    ThreadsMeta = { link = 'Normal' },
   }
   for name, spec in pairs(groups) do
     vim.api.nvim_set_hl(0, name, spec)

@@ -423,6 +423,8 @@ test('show window uses markdown filetype', function()
   ok(win and vim.api.nvim_win_is_valid(win), 'show window not opened')
   eq(vim.bo[vim.api.nvim_win_get_buf(win)].filetype, 'markdown')
   eq(vim.wo[win].conceallevel, 2)
+  local ns = vim.api.nvim_create_namespace('threads.nvim.show')
+  ok(#vim.api.nvim_buf_get_extmarks(vim.api.nvim_win_get_buf(win), ns, 0, -1, {}) > 0, 'no show highlights')
   vim.api.nvim_win_close(win, true)
 end)
 
@@ -433,8 +435,9 @@ test('show exposes message lines for [[/]] navigation', function()
   threads.comment(t, { text = 'q2' })
   local lines, message_lines = require('threads.ui.show').lines_for(t)
   eq(#message_lines, 2)
-  ok(lines[message_lines[1]]:match('^── ') ~= nil)
-  ok(lines[message_lines[2]]:match('^── ') ~= nil)
+  for _, l in ipairs(message_lines) do
+    ok(lines[l]:find('▸') or lines[l]:find('◆'), 'message header missing at line ' .. l)
+  end
 end)
 
 --------------------------------------------------------------------------
