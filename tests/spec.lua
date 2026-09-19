@@ -391,6 +391,19 @@ test('input <Esc> submits in normal and is free in insert', function()
 end)
 
 --------------------------------------------------------------------------
+test('arg mode closes stdin so agents do not block', function()
+  fresh_buffer('stdin.lua', { 'x' })
+  threads.setup({
+    storage = { dir = datadir },
+    agent = { cmd = { 'sh', '-c', 'cat >/dev/null; echo answered' }, mode = 'arg' },
+  })
+  local t = threads.create({ range = { start_row = 0, start_col = 0, end_row = 0, end_col = 1 }, text = 'read stdin' })
+  threads.send(t)
+  ok(wait_state(t.id, 'answered', 5000), 'agent blocked on an open stdin pipe')
+  threads.setup({ storage = { dir = datadir }, agent = { cmd = { 'cat' }, mode = 'stdin' } })
+end)
+
+--------------------------------------------------------------------------
 
 print(('\n%d passed, %d failed'):format(passed, #failures))
 if #failures > 0 then

@@ -173,7 +173,7 @@ function M.run(t, ctx)
   local ok, job = pcall(vim.fn.jobstart, cmd, {
     cwd = cwd,
     env = env,
-    stdin = spec.mode == 'stdin' and 'pipe' or nil,
+    stdin = spec.mode == 'stdin' and 'pipe' or 'null',
     on_stdout = function(_, data)
       stdout.on_data(_, data)
     end,
